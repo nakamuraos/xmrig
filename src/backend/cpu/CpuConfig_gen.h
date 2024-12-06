@@ -1,6 +1,6 @@
 /* XMRig
- * Copyright (c) 2018-2021 SChernykh   <https://github.com/SChernykh>
- * Copyright (c) 2016-2021 XMRig       <https://github.com/xmrig>, <support@xmrig.com>
+ * Copyright (c) 2018-2024 SChernykh   <https://github.com/SChernykh>
+ * Copyright (c) 2016-2024 XMRig       <https://github.com/xmrig>, <support@xmrig.com>
  *
  *   This program is free software: you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -122,17 +122,6 @@ size_t inline generate<Algorithm::RANDOM_X>(Threads<CpuThreads> &threads, uint32
         }
     }
 
-    if (!threads.isExist(Algorithm::RX_KEVA)) {
-        auto keva = cpuInfo->threads(Algorithm::RX_KEVA, limit);
-        if (keva == wow) {
-            threads.setAlias(Algorithm::RX_KEVA, Algorithm::kRX_WOW);
-            ++count;
-        }
-        else {
-            count += threads.move(Algorithm::kRX_KEVA, std::move(keva));
-        }
-    }
-
     if (!threads.isExist(Algorithm::RX_WOW)) {
         count += threads.move(Algorithm::kRX_WOW, std::move(wow));
     }
@@ -153,13 +142,14 @@ size_t inline generate<Algorithm::ARGON2>(Threads<CpuThreads> &threads, uint32_t
 #endif
 
 
-#ifdef XMRIG_ALGO_ASTROBWT
+#ifdef XMRIG_ALGO_GHOSTRIDER
 template<>
-size_t inline generate<Algorithm::ASTROBWT>(Threads<CpuThreads>& threads, uint32_t limit)
+size_t inline generate<Algorithm::GHOSTRIDER>(Threads<CpuThreads>& threads, uint32_t limit)
 {
-    return generate(Algorithm::kASTROBWT, threads, Algorithm::ASTROBWT_DERO, limit);
+    return generate(Algorithm::kGHOSTRIDER, threads, Algorithm::GHOSTRIDER_RTM, limit);
 }
 #endif
+
 
 } /* namespace xmrig */
 

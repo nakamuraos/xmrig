@@ -16,6 +16,9 @@
  *   along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <stdexcept>
+
+
 #include "backend/opencl/runners/OclCnRunner.h"
 #include "backend/opencl/kernels/Cn0Kernel.h"
 #include "backend/opencl/kernels/Cn1Kernel.h"
@@ -84,7 +87,7 @@ size_t xmrig::OclCnRunner::bufferSize() const
 }
 
 
-void xmrig::OclCnRunner::run(uint32_t nonce, uint32_t *hashOutput)
+void xmrig::OclCnRunner::run(uint32_t nonce, uint32_t /*nonce_offset*/, uint32_t *hashOutput)
 {
     static const cl_uint zero = 0;
 

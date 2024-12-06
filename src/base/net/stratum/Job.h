@@ -7,8 +7,8 @@
  * Copyright 2017-2018 XMR-Stak    <https://github.com/fireice-uk>, <https://github.com/psychocrypt>
  * Copyright 2018      Lee Clagett <https://github.com/vtnerd>
  * Copyright 2019      Howard Chu  <https://github.com/hyc>
- * Copyright 2018-2021 SChernykh   <https://github.com/SChernykh>
- * Copyright 2016-2021 XMRig       <https://github.com/xmrig>, <support@xmrig.com>
+ * Copyright 2018-2024 SChernykh   <https://github.com/SChernykh>
+ * Copyright 2016-2024 XMRig       <https://github.com/xmrig>, <support@xmrig.com>
  *
  *   This program is free software: you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -27,10 +27,8 @@
 #ifndef XMRIG_JOB_H
 #define XMRIG_JOB_H
 
-
 #include <cstddef>
 #include <cstdint>
-
 
 #include "base/crypto/Algorithm.h"
 #include "base/tools/Buffer.h"
@@ -59,9 +57,11 @@ public:
     ~Job() = default;
 
     bool isEqual(const Job &other) const;
+    bool isEqualBlob(const Job &other) const;
     bool setBlob(const char *blob);
     bool setSeedHash(const char *hash);
     bool setTarget(const char *target);
+    size_t nonceOffset() const;
     void setDiff(uint64_t diff);
     void setSigKey(const char *sig_key);
 
@@ -76,7 +76,6 @@ public:
     inline const String &poolWallet() const             { return m_poolWallet; }
     inline const uint32_t *nonce() const                { return reinterpret_cast<const uint32_t*>(m_blob + nonceOffset()); }
     inline const uint8_t *blob() const                  { return m_blob; }
-    inline int32_t nonceOffset() const                  { return (algorithm().family() == Algorithm::KAWPOW) ? 32 : 39; }
     inline size_t nonceSize() const                     { return (algorithm().family() == Algorithm::KAWPOW) ?  8 :  4; }
     inline size_t size() const                          { return m_size; }
     inline uint32_t *nonce()                            { return reinterpret_cast<uint32_t*>(m_blob + nonceOffset()); }
@@ -110,7 +109,7 @@ public:
 
     inline bool operator!=(const Job &other) const      { return !isEqual(other); }
     inline bool operator==(const Job &other) const      { return isEqual(other); }
-    inline Job &operator=(const Job &other)             { copy(other); return *this; }
+    inline Job &operator=(const Job &other)             { if (this != &other) { copy(other); } return *this; }
     inline Job &operator=(Job &&other) noexcept         { move(std::move(other)); return *this; }
 
 #   ifdef XMRIG_FEATURE_BENCHMARK
@@ -119,10 +118,13 @@ public:
 #   endif
 
 #   ifdef XMRIG_PROXY_PROJECT
+    inline bool hasViewTag() const                      { return m_hasViewTag; }
+
     void setSpendSecretKey(const uint8_t* key);
-    void setMinerTx(const uint8_t* begin, const uint8_t* end, size_t minerTxEphPubKeyOffset, size_t minerTxPubKeyOffset, size_t minerTxExtraNonceOffset, size_t minerTxExtraNonceSize, const Buffer& minerTxMerkleTreeBranch);
+    void setMinerTx(const uint8_t* begin, const uint8_t* end, size_t minerTxEphPubKeyOffset, size_t minerTxPubKeyOffset, size_t minerTxExtraNonceOffset, size_t minerTxExtraNonceSize, const Buffer& minerTxMerkleTreeBranch, bool hasViewTag);
+    void setViewTagInMinerTx(uint8_t view_tag);
     void setExtraNonceInMinerTx(uint32_t extra_nonce);
-    void generateSignatureData(String& signatureData) const;
+    void generateSignatureData(String& signatureData, uint8_t& view_tag) const;
     void generateHashingBlob(String& blob) const;
 #   else
     inline const uint8_t* ephSecretKey() const { return m_hasMinerSignature ? m_ephSecretKey : nullptr; }
@@ -177,6 +179,7 @@ private:
     size_t m_minerTxExtraNonceOffset = 0;
     size_t m_minerTxExtraNonceSize = 0;
     Buffer m_minerTxMerkleTreeBranch;
+    bool m_hasViewTag = false;
 #   else
     // Miner signatures
     uint8_t m_ephPublicKey[32]{};

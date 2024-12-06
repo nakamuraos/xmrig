@@ -114,7 +114,6 @@ size_t inline generate<Algorithm::RANDOM_X>(Threads<CudaThreads> &threads, const
     auto rx  = CudaThreads(devices, Algorithm::RX_0);
     auto wow = CudaThreads(devices, Algorithm::RX_WOW);
     auto arq = CudaThreads(devices, Algorithm::RX_ARQ);
-    auto kva = CudaThreads(devices, Algorithm::RX_KEVA);
 
     if (!threads.isExist(Algorithm::RX_WOW) && wow != rx) {
         count += threads.move(Algorithm::kRX_WOW, std::move(wow));
@@ -124,22 +123,9 @@ size_t inline generate<Algorithm::RANDOM_X>(Threads<CudaThreads> &threads, const
         count += threads.move(Algorithm::kRX_ARQ, std::move(arq));
     }
 
-    if (!threads.isExist(Algorithm::RX_KEVA) && kva != rx) {
-        count += threads.move(Algorithm::kRX_KEVA, std::move(kva));
-    }
-
     count += threads.move(Algorithm::kRX, std::move(rx));
 
     return count;
-}
-#endif
-
-
-#ifdef XMRIG_ALGO_ASTROBWT
-template<>
-size_t inline generate<Algorithm::ASTROBWT>(Threads<CudaThreads> &threads, const std::vector<CudaDevice> &devices)
-{
-    return generate(Algorithm::kASTROBWT, threads, Algorithm::ASTROBWT_DERO, devices);
 }
 #endif
 

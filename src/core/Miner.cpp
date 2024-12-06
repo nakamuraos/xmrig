@@ -62,8 +62,8 @@
 #endif
 
 
-#ifdef XMRIG_ALGO_ASTROBWT
-#   include "crypto/astrobwt/AstroBWT.h"
+#ifdef XMRIG_ALGO_GHOSTRIDER
+#   include "crypto/ghostrider/ghostrider.h"
 #endif
 
 
@@ -173,7 +173,7 @@ public:
         Value total(kArrayType);
         Value threads(kArrayType);
 
-        double t[3] = { 0.0 };
+        std::pair<bool, double> t[3] = { { true, 0.0 }, { true, 0.0 }, { true, 0.0 } };
 
         for (IBackend *backend : backends) {
             const Hashrate *hr = backend->hashrate();
@@ -181,9 +181,13 @@ public:
                 continue;
             }
 
-            t[0] += hr->calc(Hashrate::ShortInterval);
-            t[1] += hr->calc(Hashrate::MediumInterval);
-            t[2] += hr->calc(Hashrate::LargeInterval);
+            const auto h0 = hr->calc(Hashrate::ShortInterval);
+            const auto h1 = hr->calc(Hashrate::MediumInterval);
+            const auto h2 = hr->calc(Hashrate::LargeInterval);
+
+            if (h0.first) { t[0].second += h0.second; } else { t[0].first = false; }
+            if (h1.first) { t[1].second += h1.second; } else { t[1].first = false; }
+            if (h2.first) { t[2].second += h2.second; } else { t[2].first = false; }
 
             if (version > 1) {
                 continue;
@@ -204,7 +208,7 @@ public:
         total.PushBack(Hashrate::normalize(t[2]),  allocator);
 
         hashrate.AddMember("total",   total, allocator);
-        hashrate.AddMember("highest", Hashrate::normalize(maxHashrate[algorithm]), allocator);
+        hashrate.AddMember("highest", Hashrate::normalize({ maxHashrate[algorithm] > 0.0, maxHashrate[algorithm] }), allocator);
 
         if (version == 1) {
             hashrate.AddMember("threads", threads, allocator);
@@ -282,18 +286,26 @@ public:
 
     void printHashrate(bool details)
     {
-        char num[16 * 4] = { 0 };
-        double speed[3]  = { 0.0 };
+        char num[16 * 5] = { 0 };
+        std::pair<bool, double> speed[3] = { { true, 0.0 }, { true, 0.0 }, { true, 0.0 } };
         uint32_t count   = 0;
+
+        double avg_hashrate = 0.0;
 
         for (auto backend : backends) {
             const auto hashrate = backend->hashrate();
             if (hashrate) {
                 ++count;
 
-                speed[0] += hashrate->calc(Hashrate::ShortInterval);
-                speed[1] += hashrate->calc(Hashrate::MediumInterval);
-                speed[2] += hashrate->calc(Hashrate::LargeInterval);
+                const auto h0 = hashrate->calc(Hashrate::ShortInterval);
+                const auto h1 = hashrate->calc(Hashrate::MediumInterval);
+                const auto h2 = hashrate->calc(Hashrate::LargeInterval);
+
+                if (h0.first) { speed[0].second += h0.second; } else { speed[0].first = false; }
+                if (h1.first) { speed[1].second += h1.second; } else { speed[1].first = false; }
+                if (h2.first) { speed[2].second += h2.second; } else { speed[2].first = false; }
+
+                avg_hashrate += hashrate->average();
             }
 
             backend->printHashrate(details);
@@ -308,17 +320,32 @@ public:
         double scale  = 1.0;
         const char* h = "H/s";
 
-        if ((speed[0] >= 1e6) || (speed[1] >= 1e6) || (speed[2] >= 1e6) || (maxHashrate[algorithm] >= 1e6)) {
+        if ((speed[0].second >= 1e6) || (speed[1].second >= 1e6) || (speed[2].second >= 1e6) || (maxHashrate[algorithm] >= 1e6)) {
             scale = 1e-6;
+
+            speed[0].second *= scale;
+            speed[1].second *= scale;
+            speed[2].second *= scale;
+
             h = "MH/s";
         }
 
-        LOG_INFO("%s " WHITE_BOLD("speed") " 10s/60s/15m " CYAN_BOLD("%s") CYAN(" %s %s ") CYAN_BOLD("%s") " max " CYAN_BOLD("%s %s"),
+        char avg_hashrate_buf[64];
+        avg_hashrate_buf[0] = '\0';
+
+#       ifdef XMRIG_ALGO_GHOSTRIDER
+        if (algorithm.family() == Algorithm::GHOSTRIDER) {
+            snprintf(avg_hashrate_buf, sizeof(avg_hashrate_buf), " avg " CYAN_BOLD("%s %s"), Hashrate::format({ true, avg_hashrate * scale }, num + 16 * 4, 16), h);
+        }
+#       endif
+
+        LOG_INFO("%s " WHITE_BOLD("speed") " 10s/60s/15m " CYAN_BOLD("%s") CYAN(" %s %s ") CYAN_BOLD("%s") " max " CYAN_BOLD("%s %s") "%s",
                  Tags::miner(),
-                 Hashrate::format(speed[0] * scale,                 num,          sizeof(num) / 4),
-                 Hashrate::format(speed[1] * scale,                 num + 16,     sizeof(num) / 4),
-                 Hashrate::format(speed[2] * scale,                 num + 16 * 2, sizeof(num) / 4), h,
-                 Hashrate::format(maxHashrate[algorithm] * scale,   num + 16 * 3, sizeof(num) / 4), h
+                 Hashrate::format(speed[0],                 num,          16),
+                 Hashrate::format(speed[1],                 num + 16,     16),
+                 Hashrate::format(speed[2],                 num + 16 * 2, 16), h,
+                 Hashrate::format({ maxHashrate[algorithm] > 0.0, maxHashrate[algorithm] * scale },   num + 16 * 3, 16), h,
+                 avg_hashrate_buf
                  );
 
 #       ifdef XMRIG_FEATURE_BENCHMARK
@@ -331,6 +358,11 @@ public:
 
 #   ifdef XMRIG_ALGO_RANDOMX
     inline bool initRX() const { return Rx::init(job, controller->config()->rx(), controller->config()->cpu()); }
+#   endif
+
+
+#   ifdef XMRIG_ALGO_GHOSTRIDER
+    inline void initGhostRider() const { ghostrider::benchmark(); }
 #   endif
 
 
@@ -373,10 +405,6 @@ xmrig::Miner::Miner(Controller *controller)
 
 #   ifdef XMRIG_ALGO_RANDOMX
     Rx::init(this);
-#   endif
-
-#   ifdef XMRIG_ALGO_ASTROBWT
-    astrobwt::init();
 #   endif
 
     controller->addListener(this);
@@ -491,7 +519,7 @@ void xmrig::Miner::setEnabled(bool enabled)
         return;
     }
 
-    if (d_ptr->battery_power && enabled) {
+    if (d_ptr->controller->config()->isPauseOnBattery() && d_ptr->battery_power && enabled) {
         LOG_INFO("%s " YELLOW_BOLD("can't resume while on battery power"), Tags::miner());
 
         return;
@@ -529,7 +557,13 @@ void xmrig::Miner::setJob(const Job &job, bool donate)
 
 #   ifdef XMRIG_ALGO_RANDOMX
     if (job.algorithm().family() == Algorithm::RANDOM_X && !Rx::isReady(job)) {
-        stop();
+        if (d_ptr->algorithm != job.algorithm()) {
+            stop();
+        }
+        else {
+            Nonce::pause(true);
+            Nonce::touch();
+        }
     }
 #   endif
 
@@ -540,6 +574,12 @@ void xmrig::Miner::setJob(const Job &job, bool donate)
     const uint8_t index = donate ? 1 : 0;
 
     d_ptr->reset = !(d_ptr->job.index() == 1 && index == 0 && d_ptr->userJobId == job.id());
+
+    // Don't reset nonce if pool sends the same hashing blob again, but with different difficulty (for example)
+    if (d_ptr->job.isEqualBlob(job)) {
+        d_ptr->reset = false;
+    }
+
     d_ptr->job   = job;
     d_ptr->job.setIndex(index);
 
@@ -549,8 +589,19 @@ void xmrig::Miner::setJob(const Job &job, bool donate)
 
 #   ifdef XMRIG_ALGO_RANDOMX
     const bool ready = d_ptr->initRX();
+
+    // Always reset nonce on RandomX dataset change
+    if (!ready) {
+        d_ptr->reset = true;
+    }
 #   else
     constexpr const bool ready = true;
+#   endif
+
+#   ifdef XMRIG_ALGO_GHOSTRIDER
+    if (job.algorithm().family() == Algorithm::GHOSTRIDER) {
+        d_ptr->initGhostRider();
+    }
 #   endif
 
     mutex.unlock();
@@ -608,7 +659,10 @@ void xmrig::Miner::onTimer(const Timer *)
         }
 
         if (backend->hashrate()) {
-            maxHashrate += backend->hashrate()->calc(Hashrate::ShortInterval);
+            const auto h = backend->hashrate()->calc(Hashrate::ShortInterval);
+            if (h.first) {
+                maxHashrate += h.second;
+            }
         }
     }
 

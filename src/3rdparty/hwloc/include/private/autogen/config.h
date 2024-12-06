@@ -17,6 +17,10 @@
 
 #define HWLOC_HAVE_MSVC_CPUIDEX 1
 
+/* #undef HAVE_MKSTEMP */
+
+#define HWLOC_HAVE_X86_CPUID 1
+
 /* Define to 1 if the system has the type `CACHE_DESCRIPTOR'. */
 #define HAVE_CACHE_DESCRIPTOR 0
 
@@ -128,8 +132,7 @@
 #define HAVE_DECL__SC_PAGE_SIZE 0
 
 /* Define to 1 if you have the <dirent.h> header file. */
-/* #define HAVE_DIRENT_H 1 */
-#undef HAVE_DIRENT_H
+/* #undef HAVE_DIRENT_H */
 
 /* Define to 1 if you have the <dlfcn.h> header file. */
 /* #undef HAVE_DLFCN_H */
@@ -282,17 +285,13 @@
 #define HAVE_STRING_H 1
 
 /* Define to 1 if you have the `strncasecmp' function. */
-#define HAVE_STRNCASECMP 1
+/* #undef HAVE_STRNCASECMP */
 
 /* Define to '1' if sysctl is present and usable */
 /* #undef HAVE_SYSCTL */
 
 /* Define to '1' if sysctlbyname is present and usable */
 /* #undef HAVE_SYSCTLBYNAME */
-
-/* Define to 1 if the system has the type
-   `SYSTEM_LOGICAL_PROCESSOR_INFORMATION'. */
-#define HAVE_SYSTEM_LOGICAL_PROCESSOR_INFORMATION 1
 
 /* Define to 1 if the system has the type
    `SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX'. */
@@ -327,8 +326,7 @@
 /* #undef HAVE_UNAME */
 
 /* Define to 1 if you have the <unistd.h> header file. */
-/* #define HAVE_UNISTD_H 1 */
-#undef HAVE_UNISTD_H
+/* #undef HAVE_UNISTD_H */
 
 /* Define to 1 if you have the `uselocale' function. */
 /* #undef HAVE_USELOCALE */
@@ -663,7 +661,7 @@
 #define hwloc_pid_t HANDLE
 
 /* Define this to either strncasecmp or strncmp */
-#define hwloc_strncasecmp strncasecmp
+/* #undef hwloc_strncasecmp */
 
 /* Define this to the thread ID type */
 #define hwloc_thread_t HANDLE

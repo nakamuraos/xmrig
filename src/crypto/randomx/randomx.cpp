@@ -100,17 +100,18 @@ RandomX_ConfigurationSafex::RandomX_ConfigurationSafex()
 	ArgonSalt = "RandomSFX\x01";
 }
 
-RandomX_ConfigurationKeva::RandomX_ConfigurationKeva()
+RandomX_ConfigurationYada::RandomX_ConfigurationYada()
 {
-	ArgonSalt = "RandomKV\x01";
-	ScratchpadL2_Size = 131072;
-	ScratchpadL3_Size = 1048576;
+	ArgonSalt = "RandomXYadaCoin\x03";
+	SuperscalarLatency = 150;
+	ArgonIterations = 4;
 }
 
 RandomX_ConfigurationBase::RandomX_ConfigurationBase()
 	: ArgonIterations(3)
 	, ArgonLanes(1)
 	, ArgonSalt("RandomX\x03")
+	, SuperscalarLatency(170)
 	, ScratchpadL1_Size(16384)
 	, ScratchpadL2_Size(262144)
 	, ScratchpadL3_Size(2097152)
@@ -260,7 +261,7 @@ typedef void(randomx::JitCompilerX86::* InstructionGeneratorX86_2)(const randomx
 
 #define JIT_HANDLE(x, prev) do { \
 		const InstructionGeneratorX86_2 p = &randomx::JitCompilerX86::h_##x; \
-		memcpy(randomx::JitCompilerX86::engine + k, &p, sizeof(p)); \
+		memcpy(randomx::JitCompilerX86::engine + k, &p, sizeof(randomx::JitCompilerX86::engine[k])); \
 	} while (0)
 
 #elif (XMRIG_ARM == 8)
@@ -295,7 +296,7 @@ typedef void(randomx::JitCompilerX86::* InstructionGeneratorX86_2)(const randomx
 	INST_HANDLE(IMUL_R, ISUB_M);
 	INST_HANDLE(IMUL_M, IMUL_R);
 
-#if defined(_M_X64) || defined(__x86_64__)
+#if defined(XMRIG_FEATURE_ASM) && (defined(_M_X64) || defined(__x86_64__))
 	if (hasBMI2) {
 		INST_HANDLE2(IMULH_R, IMULH_R_BMI2, IMUL_M);
 		INST_HANDLE2(IMULH_M, IMULH_M_BMI2, IMULH_R);
@@ -337,7 +338,7 @@ typedef void(randomx::JitCompilerX86::* InstructionGeneratorX86_2)(const randomx
 	INST_HANDLE(CBRANCH, FSQRT_R);
 #endif
 
-#if defined(_M_X64) || defined(__x86_64__)
+#if defined(XMRIG_FEATURE_ASM) && (defined(_M_X64) || defined(__x86_64__))
 	if (hasBMI2) {
 		INST_HANDLE2(CFROUND, CFROUND_BMI2, CBRANCH);
 	}
@@ -357,7 +358,7 @@ RandomX_ConfigurationWownero RandomX_WowneroConfig;
 RandomX_ConfigurationArqma RandomX_ArqmaConfig;
 RandomX_ConfigurationGraft RandomX_GraftConfig;
 RandomX_ConfigurationSafex RandomX_SafexConfig;
-RandomX_ConfigurationKeva RandomX_KevaConfig;
+RandomX_ConfigurationYada RandomX_YadaConfig;
 
 alignas(64) RandomX_ConfigurationBase RandomX_CurrentConfig;
 
@@ -410,6 +411,7 @@ extern "C" {
 	}
 
 	void randomx_release_cache(randomx_cache* cache) {
+		delete cache->jit;
 		delete cache;
 	}
 
